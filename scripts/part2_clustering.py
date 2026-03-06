@@ -1,39 +1,3 @@
-"""
-Part 2: Fuzzy Clustering
-=========================
-Goal: Reveal the REAL semantic structure of the corpus — which is messier than
-the 20 labelled categories.  A document about gun legislation genuinely belongs
-to both "talk.politics.guns" and "talk.politics.misc"; hard clustering loses
-this.  Fuzzy C-Means assigns each document a probability distribution over
-clusters, capturing graded membership.
-
-Algorithm choice — Fuzzy C-Means (FCM):
-  - Produces soft memberships (u_ij ∈ [0,1], Σ_j u_ij = 1) — exactly what we need.
-  - Fuzziness parameter m controls overlap: m→1 = hard, m→∞ = uniform.
-    We use m=1.6 (tuned below) which gives meaningful overlap without dissolving
-    cluster identity.
-  - Alternatives: GMM (assumes Gaussian blobs — embeddings are on a sphere, not
-    Gaussian), LDA (topic model — good but discrete), HDBSCAN soft clusters
-    (experimental API, harder to tune for this use case).
-
-Dimensionality reduction — UMAP before clustering:
-  - Raw 384-dim vectors cause the "curse of dimensionality": distances concentrate
-    and FCM converges poorly.  UMAP to 30 dims preserves local and global structure
-    while making distances meaningful again.
-  - We use n_components=30 (enough to retain structure, low enough for FCM to work).
-  - metric='cosine' matches our embedding space.
-
-Number of clusters — K=15:
-  - The 20 labelled categories have significant semantic overlap (e.g. comp.sys.ibm.pc
-    and comp.sys.mac belong to the same semantic region).
-  - We evaluate K ∈ {8, 10, 12, 15, 18, 20} using:
-      a) Fuzzy Partition Coefficient (FPC) — higher = crisper clusters.
-      b) Silhouette score on hard assignments — proxy for separation quality.
-      c) Manual inspection of top-terms per cluster.
-  - K=15 gives the best FPC while remaining semantically interpretable.
-    (Evidence printed during run_part2().)
-"""
-
 import os
 import pickle
 import numpy as np
@@ -43,7 +7,6 @@ from sklearn.metrics import silhouette_score
 from collections import Counter, defaultdict
 from tqdm import tqdm
 
-# ── Constants ────────────────────────────────────────────────────────────────
 UMAP_COMPONENTS  = 30     # dims after reduction; 30 preserves ≈95% structure
 UMAP_NEIGHBORS   = 15     # UMAP n_neighbors; 15 = balanced local/global
 FCM_FUZZINESS    = 1.6    # m parameter; 1.6 gives clear but overlapping clusters
@@ -54,10 +17,7 @@ BEST_K           = 15     # determined by evaluation below
 
 
 def reduce_dimensions(embeddings: np.ndarray, seed: int = 42) -> np.ndarray:
-    """
-    UMAP reduction from 384-dim → UMAP_COMPONENTS-dim.
-    cosine metric matches how sentence-transformers embeds text.
-    """
+   
     cache_path = "./data/umap_reduced.npy"
     if os.path.exists(cache_path):
         print(f"Loading UMAP reduction from cache: {cache_path}")
@@ -79,11 +39,7 @@ def reduce_dimensions(embeddings: np.ndarray, seed: int = 42) -> np.ndarray:
 
 
 def evaluate_k(reduced: np.ndarray, k_candidates=K_CANDIDATES):
-    """
-    Sweep over candidate K values and report FPC + silhouette.
-    This provides evidence for the chosen K rather than picking it by
-    convenience.
-    """
+    
     print("\n─── K Evaluation ───────────────────────────────────────")
     print(f"{'K':>4}  {'FPC':>8}  {'Silhouette':>12}")
     print("─" * 30)
@@ -113,13 +69,6 @@ def evaluate_k(reduced: np.ndarray, k_candidates=K_CANDIDATES):
 
 
 def run_fcm(reduced: np.ndarray, k: int = BEST_K):
-    """
-    Run Fuzzy C-Means with the chosen K.
-    Returns:
-      u      : membership matrix (k, N) — soft assignments
-      cntr   : cluster centroids (k, dims)
-      fpc    : Fuzzy Partition Coefficient (quality metric)
-    """
     cache_path = f"./data/fcm_k{k}.pkl"
     if os.path.exists(cache_path):
         print(f"Loading FCM results from cache: {cache_path}")
@@ -140,14 +89,7 @@ def run_fcm(reduced: np.ndarray, k: int = BEST_K):
 
 
 def analyse_clusters(docs, u, k):
-    """
-    Semantic validation of clusters.
-    Shows:
-      1. Dominant category per cluster (label distribution)
-      2. Top keywords (simple term-frequency on hard-assigned docs)
-      3. Boundary documents (entropy of membership distribution is high)
-      4. Uncertain documents (max membership < threshold)
-    """
+
     N = len(docs)
     hard_labels = np.argmax(u, axis=0)   # shape (N,)
 
@@ -211,13 +153,6 @@ def analyse_clusters(docs, u, k):
 
 
 def save_cluster_data(docs, u, hard_labels, k):
-    """
-    Attach cluster membership distributions to each doc and save.
-    Each doc gains:
-      - 'hard_cluster'   : argmax cluster id (int)
-      - 'memberships'    : list of float, length k
-      - 'dominant_membership': float, strength of dominant assignment
-    """
     u_T = u.T   # (N, k)
     for i, doc in enumerate(docs):
         doc["hard_cluster"]        = int(hard_labels[i])
