@@ -1,23 +1,3 @@
-"""
-Part 4: FastAPI Service
-========================
-Exposes the semantic cache as a live API with proper state management.
-
-Endpoints:
-  POST /query          — embed, cache-check, retrieve, store
-  GET  /cache/stats    — return hit/miss/entry counts
-  DELETE /cache        — flush cache and reset stats
-
-State management:
-  The SemanticCache instance is created at application startup via FastAPI's
-  lifespan context manager.  It is shared across all requests via dependency
-  injection (get_cache_dep).  This is the correct pattern for FastAPI — avoids
-  the deprecated @app.on_event and ensures clean startup/shutdown.
-
-Startup command (from project root, inside venv):
-  uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-"""
-
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -38,11 +18,6 @@ _cache: Optional[SemanticCache] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Startup: load the sentence-transformer model, connect to ChromaDB,
-             load FCM centroids.  This runs ONCE when uvicorn starts.
-    Shutdown: nothing to clean up (ChromaDB is persistent, model is in-memory).
-    """
     global _cache
     print("[Startup] Initialising semantic cache...")
     _cache = SemanticCache(threshold=DEFAULT_THRESHOLD)
@@ -117,13 +92,6 @@ def query_endpoint(
     body:  QueryRequest,
     cache: SemanticCache = Depends(get_cache_dep),
 ) -> QueryResponse:
-    """
-    Main query endpoint.
-
-    - Checks semantic cache first (cluster-aware, O(N/K) lookup).
-    - On HIT:  returns cached result with matched_query and similarity_score.
-    - On MISS: queries ChromaDB vector store, caches result, returns it.
-    """
     result = cache.query(body.query)
     return QueryResponse(**result)
 
