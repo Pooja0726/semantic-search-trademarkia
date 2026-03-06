@@ -8,30 +8,14 @@ from sentence_transformers import SentenceTransformer
 import chromadb
 from chromadb.config import Settings
 
-# ── Constants ────────────────────────────────────────────────────────────────
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 CHROMA_PATH     = "./data/chroma_db"
 EMBED_CACHE     = "./data/embeddings_cache.pkl"
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"  # sentence-transformers model
 MIN_DOC_LENGTH  = 50   # characters after cleaning; shorter docs are semantically empty
 BATCH_SIZE      = 256  # sentence-transformers encodes in batches; 256 fits comfortably in RAM
 
 
 def clean_document(text: str) -> str:
-    """
-    Remove noise from a newsgroup post.
-
-    Strategy:
-    1. Strip the header block (everything before the first blank line after a
-       recognisable header field).  Newsgroup headers are highly author/server
-       specific and would mislead the embedding model.
-    2. Remove quoted reply lines (">") — they repeat someone else's content.
-    3. Remove lines that look like signatures (lines after "-- " or lines full
-       of dashes/equals).
-    4. Collapse whitespace so the model sees clean running text.
-    """
-    # 1. Strip newsgroup headers (lines like "From:", "Subject:", etc.)
-    #    We find the first blank line and discard everything before it if the
-    #    preceding block looks like an email header.
     lines = text.split("\n")
     header_end = 0
     for i, line in enumerate(lines):
