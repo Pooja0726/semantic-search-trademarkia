@@ -1,28 +1,3 @@
-"""
-Part 1: Embedding & Vector Database Setup
-==========================================
-Dataset: 20 Newsgroups (fetched directly via sklearn — no manual download needed)
-Embedding Model: sentence-transformers/all-MiniLM-L6-v2
-  - Chosen because: 384-dim embeddings, fast inference, strong semantic quality,
-    completely free/local (no API key), excellent for short-medium text.
-  - Alternatives like text-embedding-3-small (OpenAI) cost money; ada-002 is overkill
-    for a retrieval+clustering task at this scale.
-Vector Store: ChromaDB
-  - Chosen because: fully local, no server needed, supports metadata filtering,
-    cosine similarity search out of the box, persistent storage, Apache-2.0 license.
-  - Alternatives: FAISS (no metadata filtering), Pinecone (paid), Weaviate (heavy).
-
-Cleaning decisions:
-  - Strip email headers (From:, Subject:, Organization:, etc.) — they introduce
-    author/domain bias that corrupts semantic signal.
-  - Strip quoted reply blocks (lines starting with ">") — these duplicate content
-    from other posts and would skew cluster membership.
-  - Remove documents shorter than 50 characters after cleaning — they carry no
-    useful semantic information and inflate noise in the embedding space.
-  - Keep punctuation (sentence-transformers handles it well) but collapse whitespace.
-  - We use subset='all' to get the full ~18,800 document corpus.
-"""
-
 import re
 import os
 import pickle
